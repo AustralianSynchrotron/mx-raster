@@ -187,3 +187,5 @@ if __name__ == '__main__':
     
     print "TOTAL TIME TAKEN: ",
     print time.time() - start
+    print "Mins: ",
+    print (time.time() - start) / 60.0
