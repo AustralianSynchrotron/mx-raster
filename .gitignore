@@ -1,3 +1,5 @@
+*.komodoproject
+
 *.py[cod]
 
 # C extensions
