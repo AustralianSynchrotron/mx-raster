@@ -4,7 +4,8 @@ import time, datetime, math, sys
 from collections import namedtuple
 from PIL import Image, ImageDraw
 
-
+#magic zoom based on which image you are using and if it has been cropped
+#Need for pixel to 'step' conversion
 zoom = 4
 Point = namedtuple('Point', ['x', 'y'])
 
@@ -28,13 +29,13 @@ def draw_grid(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
 
     #Draw Vertcal Lines
     x = topLeft.x
-    while x < topLeft.x + convert_step_to_pixels(totalVerSteps):
+    while x <= topLeft.x + convert_step_to_pixels(totalVerSteps) + 1:
         draw.line([(x, topLeft.y), (x, bottomRight.y)], fill="red")
         x += cStep
 
     #Draw Horizontal Lines
     y = topLeft.y
-    while y < bottomRight.y:
+    while y <= bottomRight.y + 1:
         draw.line([(topLeft.x, y), (bottomRight.x, y)], fill="red")
         y += cStep
 
