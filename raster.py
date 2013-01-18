@@ -35,12 +35,12 @@ def move_motor(motor, pos):
         motor.move(pos)
        
         start = time.time()
-        while omega.inPosition():
+        while motor.inPosition():
             time.sleep(0.05)
             if (time.time() - start > 2):
                 break
            
-        while not omega.inPosition():
+        while not motor.inPosition():
             time.sleep(0.05)
            
         move_motor(motor, pos)
