@@ -2,6 +2,7 @@
 #Jack Dwyer 07/01/13
 import time, datetime, math, sys, os
 from collections import namedtuple
+import requests
 
 try:
     execfile('/xray/progs/Python/setup.py')
@@ -21,8 +22,24 @@ Point = namedtuple('Point', ['x', 'y'])
  
 def log(message):
     print ("%s -- %s" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
- 
- 
+
+
+def download_image(name):
+    #Full size XTAL.MJPG
+    r = requests.get("http://10.108.2.53:8080/XTAL.MJPG.jpg")
+    with open(name+".jpg", "wb") as f:
+        for chunk in r.iter_content():
+            f.write(chunk)
+            
+    #XTAL.ROI1
+    r = requests.get("http://10.108.2.53:8080/XTAL.ROI1.jpg")
+    with open("ROI1_"+name+".jpg", "wb") as f:
+        for chunk in r.iter_content():
+            f.write(chunk)
+
+
+
+
 def move_motor(motor, pos):
     print motor.MON
     log("Checking position is at required position %s" % pos)
@@ -113,12 +130,10 @@ if __name__ == '__main__':
     rasteringCount = 1
     #TODO STORE IN REDIS
     rasterRunCount = 3
-    
     #Check rastering folder exists
     #if not os.path.isdir(path):
     #    os.makedirs(path)
         
- 
     dcssArgs = {'status': None,
     'exposure_time': 1,
     'attenuation': 90,
@@ -152,15 +167,9 @@ if __name__ == '__main__':
     #Get initial starting point
     initPoint = Point(round(hor.MON,1), round(ver.MON,1))
 
-
-
     positions = generate_positions(initPoint)
     print positions
-    
-    
     print len(positions)
-    
-    
     
     time.sleep(10)
     
