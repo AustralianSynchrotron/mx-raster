@@ -4,6 +4,8 @@ import time, datetime, math, sys, os
 from collections import namedtuple
 import requests
 
+TEST
+
 try:
     execfile('/xray/progs/Python/setup.py')
 except IOError:
