@@ -1,4 +1,4 @@
-#Jack Dwyer 16/01/13
+gi#Jack Dwyer 16/01/13
 #Test script for drawing the rectangle grid over lay from the first craystal jpeg
 import time, datetime, math, sys
 from collections import namedtuple
