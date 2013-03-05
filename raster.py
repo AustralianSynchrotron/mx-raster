@@ -2,22 +2,16 @@
 #Jack Dwyer 07/01/13
 import time, datetime, math, sys, os
 from collections import namedtuple
-import requests
+import requests, argparse, logging
+#from epics import caput, caget
+#import beamline
 
-try:
-    execfile('/xray/progs/Python/setup.py')
-except IOError:
-    print "Failed to load /xray/progs/Python/setup.py"
-    sys.exit(1)
-    
-   
-import mx
-from beamline import variables as mxvariables
 
-sys.path.insert(0, '/xray/progs/dcss_test')
-from dcss_runs import DCSSRuns 
- 
- 
+logging.basicConfig(format='[%(asctime)s -- %(levelname)s] -- %(message)s',
+                    datefmt='%Y-%m-%d %H:%M', level=logging.INFO)
+
+logger = logging.getLogger(__file__)
+
 Point = namedtuple('Point', ['x', 'y'])
  
 def log(message):
@@ -80,12 +74,12 @@ def generate_positions(initPoint, centre=True, totalHorSteps=49, totalVerSteps=4
    # log("%s %s,%s" % ("Starting X: ", min(initPoint), max(initPoint)))
    
    
-    log("%s %s" % ("Starting X Position:", initPoint.x))
+    logger("%s %s" % ("Starting X Position:", initPoint.x))
    
-    log("%s %s" % ("Starting Y Position:", initPoint.y))
+    logger("%s %s" % ("Starting Y Position:", initPoint.y))
  
-    log("%s %s,%s" % ("X Boundaries: ", min(xBoundary), max(xBoundary)))
-    log("%s %s,%s" % ("Y Boundaries: ", min(yBoundary), max(yBoundary)))
+    logger("%s %s,%s" % ("X Boundaries: ", min(xBoundary), max(xBoundary)))
+    logger("%s %s,%s" % ("Y Boundaries: ", min(yBoundary), max(yBoundary)))
  
  
     yPosition = initPoint.y
@@ -122,57 +116,44 @@ def check_file(count):
  
 if __name__ == '__main__':
     
+    parser = argparse.ArgumentParser(description="Auto Rastering")
+    parser.add_argument("--debug", action='store_true', default=False)
+    parser.add_argument("-a", "--angle", type=int, default=0)
+
+    try:
+        args = parser.parse_args()
+    except argparse.ArgumentError, e:
+        print e
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
+    logger.debug(args.angle)
+
     start = time.time()
 
-    #Set up start_run
-    EPN = mxvariables.EPN
-    path = os.path.join('/data/frames', EPN, 'rastering')
-    rasteringCount = 1
-    #TODO STORE IN REDIS
-    rasterRunCount = 3
-    #Check rastering folder exists
-    #if not os.path.isdir(path):
-    #    os.makedirs(path)
-        
-    dcssArgs = {'status': None,
-    'exposure_time': 1,
-    'attenuation': 90,
-    'run': 0,
-    'start_frame': rasteringCount,
-    'start_angle': 0,
-    'debug': False,
-    'end_angle': None,
-    'collect': False,
-    'energy1': None,
-    'next_frame': 0,
-    'delta': 1,
-    'directory': path,
-    'file_root': 'raster_{0}'.format(rasterRunCount),
-    'beam_stop': None,
-    'distance': 500}
-
- 
-    #generate collector object
-    runs = DCSSRuns()
+    #Motor Objects
+    sample_x = beamline.motors.sample_x
+    sample_y = beamline.motors.sample_y
+    omega = beamline.motors.omega
+    gonibase_x = beamline.motors.gonibase_x
  
     #Generate Motor Objects
     hor = mx.Motor("SR03ID01GON01:X", deadband=0.1)
     ver = mx.Motor("SR03ID01GON01:SAMPLE_Y", deadband=0.1)
     omega = mx.Motor('SR03ID01GON01:OMEGA')
-    
-    
-    #Uncomment, to zero out omega motor
-    move_motor(omega, 0)
+       
+    #Move omega
+    omega.move(args.angle)
 
     #Get initial starting point
-    initPoint = Point(round(hor.MON,1), round(ver.MON,1))
+    initPoint = Point(round(gonibase_x.MON,1), round(sample_y.MON,1))
 
     positions = generate_positions(initPoint)
     print positions
     print len(positions)
     
-    time.sleep(10)
-    
+    """ 
     for position in positions:
         log("moving hor %s" % position.x)
         #hor.move(position.x)
@@ -193,7 +174,7 @@ if __name__ == '__main__':
     #move back to centre
     move_motor(hor, initPoint.x)
     move_motor(ver, initPoint.y)
-    
+    """
     print "TOTAL TIME TAKEN: ",
     print time.time() - start
     print "Mins: ",
