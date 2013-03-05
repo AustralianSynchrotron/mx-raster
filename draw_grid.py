@@ -6,12 +6,12 @@ from PIL import Image, ImageDraw
 
 #magic zoom based on which image you are using and if it has been cropped
 #Need for pixel to 'step' conversion
-zoom = 1
+zoom = 0.5
 Point = namedtuple('Point', ['x', 'y'])
 
 def convert_step_to_pixels(steps):
     #1 step = 1.43 pixels
-    return steps * 1.68 * zoom
+    return (steps/0.64) * zoom
 
 
 def draw_grid(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
