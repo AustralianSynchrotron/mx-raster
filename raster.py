@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     imageXCenter = caget("03ID:XTAL:cursor1:CursorX")
     imageYCenter = caget("03ID:XTAL:cursor1:CursorY")
-    draw_grid('test_init.jpg', imageXCenter, imageYCenter)
+    #draw_grid('test_init.jpg', imageXCenter, imageYCenter)
     logger.debug("imageXCenter: %s" % imageXCenter)
     logger.debug("imageYCenter: %s" % imageYCenter)
     
