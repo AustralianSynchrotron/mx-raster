@@ -50,10 +50,10 @@ def download_image(name):
             f.write(chunk)
 
  
-def raster(motor, motorName, attenuation, initPoint, unit_totalHor, unit_totalVer, unit_steps, runCount):
+def raster(motor, motorName, attenuation, distance, angle, initPoint, unit_totalHor, unit_totalVer, unit_steps, runCount):
     #real *units*
-    unit_verTotalSteps = unit_totalHor
-    unit_horTotalSteps = unit_totalVer 
+    unit_verTotalSteps = unit_totalVer
+    unit_horTotalSteps = unit_totalHor 
     step = unit_steps
     
     motor_vsteps = unit_steps * CALsample_y
@@ -68,13 +68,13 @@ def raster(motor, motorName, attenuation, initPoint, unit_totalHor, unit_totalVe
     #Check rastering folder exists
     #if not os.path.isdir(path):
     #    os.makedirs(path)
-     
+    rasteringCount = 1
     dcssArgs = {'status': None,
     'exposure_time': 1,
     'attenuation': attenuation,
     'run': 0,
-    'start_frame': rasteringCount,
-    'start_angle': 0,
+    'start_frame': runCount,
+    'start_angle': angle,
     'debug': False,
     'end_angle': None,
     'collect': False,
@@ -84,7 +84,7 @@ def raster(motor, motorName, attenuation, initPoint, unit_totalHor, unit_totalVe
     'directory': path,
     'file_root': 'raster_{0}'.format(rasterRunCount),
     'beam_stop': None,
-    'distance': 500}
+    'distance': distance}
     files = {} 
  
     #generate collector object
@@ -92,13 +92,16 @@ def raster(motor, motorName, attenuation, initPoint, unit_totalHor, unit_totalVe
  
     xPositions = list((x) for x in xfrange(initPoint.x - ((unit_horTotalSteps * CALgonibase_x) / 2 ), initPoint.x + ((unit_horTotalSteps * CALgonibase_x) / 2), motor_hsteps))
     yPositions = list((y) for y in xfrange(initPoint.y - ((unit_verTotalSteps * CALsample_y) / 2), initPoint.y + ((unit_verTotalSteps * CALsample_y) / 2), motor_vsteps))
-    
+
+    print len(xPositions)
+    print len(yPositions)
+
     for x in xPositions:
         logger.debug("Moving X to: %s" % x)
         gonibase_x.move(x, wait=True)
         for y in yPositions:
             logger.debug("Moving Y to: %s" % y)
-            motor.move(y, wait=True)
+            motor.move(y, wait=True, disableHome=True)
            
             logger.info("Taking Shot!")
             
@@ -107,15 +110,14 @@ def raster(motor, motorName, attenuation, initPoint, unit_totalHor, unit_totalVe
             
             runs.set_run('run%s' % dcssArgs['run'], **dcssArgs) 
             runs.start_run(dcssArgs['run'])
-            fileName = "raster_{0}_{1}_{2}.img" % (count, dcss['run'], rasteringCount)
+            fileName = "raster_%d_%d_%03d.img" % (runCount, dcssArgs['run'], rasteringCount)
             files[fileName] = (motorName, x, y)
-            beamline.redis.set(rediskey, json.dumps())        
             rasteringCount += 1
  
     beamline.redis.set(redisKey, json.dumps(files))
     #Back to starting points
     gonibase_x.move(initPoint.x, wait=True)
-    motor.move(initPoint.y, wait=True)
+    motor.move(initPoint.y, wait=True, disableHome=True)
 
 
 def check_file(count, path):
@@ -128,16 +130,17 @@ if __name__ == '__main__':
     if caget("SR03ID01HU03LENS01:ZOOM.RBV") != 1700:
         logging.warning("Zoom level needs to be medium")
         sys.exit(1)
+    distance = beamline.motors.distance.MON
 
     parser = argparse.ArgumentParser(description="Auto Rastering")
     parser.add_argument("--debug", action='store_true', default=False)
     parser.add_argument("-a", "--angle", type=int, default=0)
     parser.add_argument("--steps", type=int, default=10)
-    parser.add_argument("--grid-size-H", type=int, default=50)
-    parser.add_argument("--grid-size-V", type=int, default=50)
-    parser.add_argument("--run-count", type=int, default=1)
+    parser.add_argument("--gridsizeH", type=int, default=50)
+    parser.add_argument("--gridsizeV", type=int, default=50)
+    parser.add_argument("--runcount", type=int, default=1)
     parser.add_argument("--attenuation", type=int, default=95)
-
+    parser.add_argument("--distance", type=int, default=round(distance, 1))
     try:
         args = parser.parse_args()
     except argparse.ArgumentError, e:
@@ -156,14 +159,12 @@ if __name__ == '__main__':
  
     #Generate Motor Objects
        
-    #Move omega
-    #omega.move(args.angle)
+    omega.move(args.angle, wait=True)
 
-    #Get initial starting point
-    initPoint = Point(round(gonibase_x.MON,1), round(sample_y.MON,1))
- 
-    logger.info("Downloading initial image")
-    download_image("test_init")
+    #Get initial starting point\
+     
+    #logger.info("Downloading initial image")
+    #download_image("test_init")
 
     imageXCenter = caget("03ID:XTAL:cursor1:CursorX")
     imageYCenter = caget("03ID:XTAL:cursor1:CursorY")
@@ -171,10 +172,13 @@ if __name__ == '__main__':
     logger.debug("imageXCenter: %s" % imageXCenter)
     logger.debug("imageYCenter: %s" % imageYCenter)
     
-    if (omega.MON == 0):
-        raster(sample_y, "sample_y", args.attenuation, initPoint, args.grid-size-H, args.grid-size-V, args.steps, args.run-count) 
-    elif (gonibase_x.MON == 90):
-        raster(sample_x, "sample_x", args.attenuation, initPoint, args.grid-size-H, args.grid-size-V, args.steps, args.run-count) 
+    if round(omega.MON,2) == 0:
+        initPoint = Point(round(gonibase_x.MON,1), round(sample_y.MON,1))
+        raster(sample_y, "sample_y", args.attenuation, distance, args.angle, initPoint, args.gridsizeH, args.gridsizeV, args.steps, args.runcount) 
+
+    elif round(omega.MON,2) == 90:
+        initPoint = Point(round(gonibase_x.MON,1), round(sample_x.MON,1))
+        raster(sample_x, "sample_x", args.attenuation, distance, args.angle, initPoint, args.gridsizeH, args.gridsizeV, args.steps, args.runcount) 
     else:
         logger.warning("Omega needs to be at 0 or 90 degrees")
         sys.exit(1)
