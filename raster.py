@@ -12,7 +12,7 @@ from itertools import product
 import requests, argparse, logging
 from epics import caput, caget
 import beamline
-from draw_grid import draw_grid
+#from draw_grid import draw_grid
 import json
 
 
