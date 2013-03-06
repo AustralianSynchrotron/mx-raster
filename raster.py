@@ -2,61 +2,43 @@
 #Jack Dwyer 07/01/13
 import time, datetime, math, sys, os
 from collections import namedtuple
+from itertools import product
 import requests, argparse, logging
-#from epics import caput, caget
-#import beamline
-
+from epics import caput, caget
+import beamline
+from draw_grid import draw_grid
 
 logging.basicConfig(format='[%(asctime)s -- %(levelname)s] -- %(message)s',
                     datefmt='%Y-%m-%d %H:%M', level=logging.INFO)
 
 logger = logging.getLogger(__file__)
 
-Point = namedtuple('Point', ['x', 'y'])
- 
-def log(message):
-    print ("%s -- %s" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
 
+#Calibration Factors:
+CALgonibase_x = 1.4
+CALsample_y = 0.54
+
+
+
+
+Point = namedtuple('Point', ['inc', 'x', 'y'])
+
+
+
+
+def xfrange(start, stop, step):
+    while start < stop: 
+        yield start
+        start += step
+    yield stop
 
 def download_image(name):
     #Full size XTAL.MJPG
-    r = requests.get("http://10.108.2.53:8080/XTAL.MJPG.jpg")
-    with open(name+".jpg", "wb") as f:
+    r = requests.get("http://10.108.2.53:8080/XTAL.OVER.jpg")
+    with open(".".join((name, "jpg")), "wb") as f:
         for chunk in r.iter_content():
             f.write(chunk)
-            
-    #XTAL.ROI1
-    r = requests.get("http://10.108.2.53:8080/XTAL.ROI1.jpg")
-    with open("ROI1_"+name+".jpg", "wb") as f:
-        for chunk in r.iter_content():
-            f.write(chunk)
-
-
-
-
-def move_motor(motor, pos):
-    print motor.MON
-    log("Checking position is at required position %s" % pos)
-    #make sure omega drive is at 0 degrees
-    if math.fabs(motor.SP - pos) < 0.2:
-        log("Motor in Position %s" % pos)
-        return
-    else:
-        log("Motor moving")
-        motor.move(pos)
        
-        start = time.time()
-        while motor.inPosition():
-            time.sleep(0.05)
-            if (time.time() - start > 2):
-                break
-           
-        while not motor.inPosition():
-            time.sleep(0.05)
-           
-        move_motor(motor, pos)
- 
- 
 def generate_positions(initPoint, centre=True, totalHorSteps=49, totalVerSteps=49, step=10):
     """Returns a list of Points for each shot location """
     positions = []
@@ -64,46 +46,33 @@ def generate_positions(initPoint, centre=True, totalHorSteps=49, totalVerSteps=4
     if centre: #Make sure we move motor to begin at top left
         x = initPoint.x - (totalHorSteps / 2)
         y = initPoint.y + (totalVerSteps / 2)
-        initPoint = Point(x, y)
+        initPoint = Point(100, x, y)
     else:
         initPoint = initPoint
        
     xBoundary = [initPoint.x, (initPoint.x + totalVerSteps)]
     yBoundary = [(initPoint.y - totalHorSteps), initPoint.y]
    
-   # log("%s %s,%s" % ("Starting X: ", min(initPoint), max(initPoint)))
+    # log("%s %s,%s" % ("Starting X: ", min(initPoint), max(initPoint)))
    
    
-    logger("%s %s" % ("Starting X Position:", initPoint.x))
+    logger.debug("%s %s" % ("Starting X Position:", initPoint.x))
    
-    logger("%s %s" % ("Starting Y Position:", initPoint.y))
+    logger.debug("%s %s" % ("Starting Y Position:", initPoint.y))
  
-    logger("%s %s,%s" % ("X Boundaries: ", min(xBoundary), max(xBoundary)))
-    logger("%s %s,%s" % ("Y Boundaries: ", min(yBoundary), max(yBoundary)))
+    logger.debug("%s %s,%s" % ("X Boundaries: ", min(xBoundary), max(xBoundary)))
+    logger.debug("%s %s,%s" % ("Y Boundaries: ", min(yBoundary), max(yBoundary)))
  
- 
-    yPosition = initPoint.y
+    inc = 0 
+    yPosition = initPoint.y 
     xPosition = initPoint.x
- 
-    #Generate position
-    while yPosition >= min(yBoundary):
-        if xPosition <= max(xBoundary): #Need to move from left to right
-            while xPosition <= max(xBoundary):
-                if xPosition < min(xBoundary):
-                    xPosition = xPosition + step
-                else:
-                    positions.append(Point(xPosition, yPosition))
-                    xPosition = xPosition + step
-        else:   #Need to reverse back, so move right to left
-            while xPosition >= min(xBoundary):
-                if xPosition > max(xBoundary):
-                    xPosition = xPosition - step
-                else:
-                    positions.append(Point(xPosition, yPosition))
-                    xPosition = xPosition - step
-        yPosition = yPosition - step
-        print ""
- 
+
+    positions = list(product(xfrange(min(xBoundary), max(xBoundary), 10), xfrange(min(yBoundary), max(yBoundary), 10)))
+
+     
+    #logger.debug("===Positions===")
+    #logger.debug(positions)
+    #logger.debug("===============")
     return positions
  
 
@@ -119,7 +88,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Auto Rastering")
     parser.add_argument("--debug", action='store_true', default=False)
     parser.add_argument("-a", "--angle", type=int, default=0)
-
+    
     try:
         args = parser.parse_args()
     except argparse.ArgumentError, e:
@@ -128,7 +97,7 @@ if __name__ == '__main__':
     if args.debug:
         logger.setLevel(logging.DEBUG)
 
-    logger.debug(args.angle)
+    logger.debug("ANGLE %s" % args.angle)
 
     start = time.time()
 
@@ -139,19 +108,40 @@ if __name__ == '__main__':
     gonibase_x = beamline.motors.gonibase_x
  
     #Generate Motor Objects
-    hor = mx.Motor("SR03ID01GON01:X", deadband=0.1)
-    ver = mx.Motor("SR03ID01GON01:SAMPLE_Y", deadband=0.1)
-    omega = mx.Motor('SR03ID01GON01:OMEGA')
        
     #Move omega
-    omega.move(args.angle)
+    #omega.move(args.angle)
 
     #Get initial starting point
-    initPoint = Point(round(gonibase_x.MON,1), round(sample_y.MON,1))
+    initPoint = Point(00,round(gonibase_x.MON,1), round(sample_y.MON,1))
 
     positions = generate_positions(initPoint)
-    print positions
-    print len(positions)
+    
+    logger.debug("First Pos: %r, %r" % (positions[0]))
+    logger.debug("Final Pos: %r, %r" % (positions[-1]))
+    
+    logger.info("Downloading initial image")
+    download_image("test_init")
+
+    imageXCenter = caget("03ID:XTAL:cursor1:CursorX")
+    imageYCenter = caget("03ID:XTAL:cursor1:CursorY")
+    
+    logger.debug("imageXCenter: %s" % imageXCenter)
+    logger.debug("imageYCenter: %s" % imageYCenter)
+   
+    #draw_grid("test_init.jpg", imageXCenter, imageYCenter)
+
+    
+    #move to final position
+    if args.debug:
+        gonibase_x.move(positions[-1][0]/CALgonibase_x)
+        sample_y.move(positions[-1][1]/CALsample_y)
+        time.sleep(5)
+        #move back to init
+       
+        gonibase_x.move(positions[-1][0]/CALgonibase_x)
+        sample_y.move(positions[-1][1]/CALsample_y)
+
     
     """ 
     for position in positions:
@@ -175,7 +165,5 @@ if __name__ == '__main__':
     move_motor(hor, initPoint.x)
     move_motor(ver, initPoint.y)
     """
-    print "TOTAL TIME TAKEN: ",
-    print time.time() - start
-    print "Mins: ",
-    print (time.time() - start) / 60.0
+
+    logger.debug("Time Taken (seconds): %s" % (time.time() - start))

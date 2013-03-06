@@ -14,7 +14,9 @@ def convert_step_to_pixels(steps):
     return (steps/0.64) * zoom
 
 
-def draw_grid(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
+def draw_grid(imageName, xcenter, ycenter):
+    img = Image.open(imageName)
+    centre = Point(xcenter, ycenter)
     draw = ImageDraw.Draw(img)
     topLeft = Point(centrePoint.x - (convert_step_to_pixels(totalHorSteps) * 0.5),
                     centrePoint.y - (convert_step_to_pixels(totalVerSteps) * 0.5))
@@ -41,6 +43,36 @@ def draw_grid(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
 
     del draw
 
+    img.save("t.jpg")
+
+
+def draw_gridi_(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
+    draw = ImageDraw.Draw(img)
+    topLeft = Point(centrePoint.x - (convert_step_to_pixels(totalHorSteps) * 0.5),
+                    centrePoint.y - (convert_step_to_pixels(totalVerSteps) * 0.5))
+    bottomRight = Point(centrePoint.x + (convert_step_to_pixels(totalHorSteps) * 0.5),
+                        centrePoint.y + (convert_step_to_pixels(totalVerSteps) * 0.5))    
+    
+    
+    #draw.rectangle((topLeft.x, topLeft.y, bottomRight.x, bottomRight.y), outline="red")
+    
+    
+    cStep = convert_step_to_pixels(step)
+
+    #Draw Vertcal Lines
+    x = topLeft.x
+    while x <= topLeft.x + convert_step_to_pixels(totalVerSteps) + 1:
+        draw.line([(x, topLeft.y), (x, bottomRight.y)], fill="red")
+        x += cStep
+
+    #Draw Horizontal Lines
+    y = topLeft.y
+    while y <= bottomRight.y + 1:
+        draw.line([(topLeft.x, y), (bottomRight.x, y)], fill="red")
+        y += cStep
+
+    del draw
+"""
 img = Image.open("test1.jpg")
 width, height = img.size
 centre = Point(width * 0.5, height * 0.5)
@@ -55,3 +87,4 @@ draw_grid(img, centre)
 img.save("test.jpg")
 
 #img.show()
+"""
