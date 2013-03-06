@@ -9,12 +9,13 @@ from PIL import Image, ImageDraw
 zoom = 0.5
 Point = namedtuple('Point', ['x', 'y'])
 
+
 def convert_step_to_pixels(steps):
     #1 step = 1.43 pixels
     return (steps/0.64) * zoom
 
 
-def draw_grid(imageName, xcenter, ycenter):
+def draw_grid(imageName, xcenter, ycenter, step, totalHorSteps, totaVerSteps):
     img = Image.open(imageName)
     centre = Point(xcenter, ycenter)
     draw = ImageDraw.Draw(img)
@@ -42,11 +43,10 @@ def draw_grid(imageName, xcenter, ycenter):
         y += cStep
 
     del draw
+    img.save("_".join(("grid", name)))
 
-    img.save("t.jpg")
 
-
-def draw_gridi_(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
+def draw_grid_(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
     draw = ImageDraw.Draw(img)
     topLeft = Point(centrePoint.x - (convert_step_to_pixels(totalHorSteps) * 0.5),
                     centrePoint.y - (convert_step_to_pixels(totalVerSteps) * 0.5))
@@ -72,7 +72,7 @@ def draw_gridi_(img, centrePoint, totalHorSteps=50, totalVerSteps=50, step=10):
         y += cStep
 
     del draw
-"""
+  """
 img = Image.open("test1.jpg")
 width, height = img.size
 centre = Point(width * 0.5, height * 0.5)
